@@ -1,0 +1,32 @@
+{{left_sidebar_enabled,right_sidebar_enabled=False,('message' in globals())}}
+{{extend 'layout.html'}}
+
+        <body background="http://blog.hdwallsource.com/wp-content/uploads/2014/11/gradient-background-26046-26731-hd-wallpapers.jpg.png"></body>
+
+
+{{block toolbar_left}}
+<div class="orderup">
+
+
+      <h1 class = "title"><center>◎rderUp!<i class="fa fa-hand-o-up"></i></center></h1>
+          
+
+    </div>
+    <div class="aboutus">
+        <h3>How many times have you <i>craved</i> food from Chipotle but cannot access it due to lack of transportation? Whether you are on or off campus, getting food around Santa Cruz is an issue for many. OrderUp! tackles this problem by allowing users to contact their friends to request meals. OrderUp! uses Twilio API to generate and facilitate communication between the user and meal provider. Get started below!</h3>
+    </div>
+
+ {{if auth.user_id is None:}}
+                <div class = right>
+                <a id="sign-auth" class="btn btn-info" href="user.html/register" role="button">Sign Up</a>
+                <a id="sign-auth" class="btn btn-info" href="user.html/login" role="button">Log In</a>
+               {{=A('Continue without logging in', _class="btn btn-success", _href=URL('default','order.html'))}}
+                </div>
+            {{else:}}
+                <a id="board-logout" class="btn btn-danger" href="user.html/logout" role="button" style="float:right">Log Out</a>
+                <a id="sign-auth" class="btn btn-success" href="order.html" role="button" style="float:right">Continue</a>
+            {{pass}}
+
+
+{{block}}
+

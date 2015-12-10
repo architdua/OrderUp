@@ -1,0 +1,93 @@
+{{extend 'layout.html'}}
+
+        <body background="http://4vector.com/i/free-vector-fast-food-cartoon-01-vector_094464_(2)-01.jpg"></body>
+
+{{block breadcrumbs}}
+    <ol class="breadcrumb">
+        <li><a href="{{=URL('default', 'index')}}">{{=T('Home')}}</a></li>
+        <li class="active">Order</li>
+    </ol>
+{{end}}
+
+
+{{block toolbar_left}}
+        <div class = "order_title">
+<h2>Order!</h2>
+            </div>
+{{if auth.is_logged_in():}}
+        <div class="logout"><a id="logout" class="btn btn-danger" href="user.html/logout" role="button" style="float:right">Log Out</a></div>
+       <button class="btn btn-lg btn-primary" onclick="unhide('orderform')">
+                <i class="fa fa-plus"></i>Create New Order
+        </button>
+        <button class="btn btn-lg btn-primary" onclick="unhide('gridform')">
+                <i class="fa fa-clipboard"></i>View Saved Orders
+        </button>
+        <a class="btn btn-lg btn-primary" href="{{=URL('default', 'contacts', vars=_next)}}">
+                <i class="fa fa-user"></i>{{=T('Contacts')}}
+            </a>
+
+
+        <div id="orderform" style="display:none">
+            {{=orderform}}
+            </div>
+        <div id="gridform" style="display:none">
+            {{=gridform}}
+
+         </div>
+        {{else:}}
+            <a class="btn btn-lg btn-danger" href="{{=URL('default', 'user', args='register', vars=_next)}}">
+                <i class="fa fa-user-plus"></i>{{=T('Register')}}
+            </a>
+            <a id="sign-auth" class="btn btn-info" href="user.html/login" role="button">Log In</a>
+            {{=orderform}}
+        {{pass}}
+{{end}}
+
+
+<script type="text/javascript">
+    function unhide(divID) {
+    var item = document.getElementById(divID);
+    if (item) {
+            item.style.display=(item.style.display=='none')?'block':'none';
+        }
+    }
+
+</script>
+
+
+<div class="col-sm-9 col-sm-offset-3" id="submit_record__row" type="submit" value="Submit" role= "button" href="/final3/default/index.html">
+     </div>
+
+
+<div id="ractive-target-boards"></div>
+
+    <script>
+        $(function() {
+            var board_create_fail = "{{=T('Failed to create board')}}";
+
+            // Ractive object
+            var MAIN = new Ractive({
+                el: "#ractive-target-boards",
+                template: "#template",
+                delimiters: ["{%", "%}"],
+                tripleDelimiters: ["{%%", "%%}"],
+                data: {
+                    pause: 0,
+                    boards: [],
+                    board_count: -1
+                }
+            });
+
+
+            $("#create-order").on("click", function() {
+               //MAIN.add('#orderform');
+            });
+
+             $("#saved-orders").on("click", function(){
+                $("#gridform").hide();
+      });
+
+        });
+    </script>
+
+

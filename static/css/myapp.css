@@ -1,0 +1,27 @@
+/* line 1, ../sass/_main.scss */
+.colorful {
+  color: #bb8833;
+}
+
+/* line 5, ../sass/_main.scss */
+.view_board {
+  width: 150px;
+  padding: 25px;
+  border: 5px solid #6900a1;
+  margin: 35px;
+}
+
+/* line 12, ../sass/_main.scss */
+.naam {
+  width: 150px;
+  padding: 25px;
+  border: 5px solid #6900a1;
+  text-align: center;
+  margin: 35px;
+}
+
+/* line 20, ../sass/_main.scss */
+.whole {
+  color: #99b2ff;
+}
+

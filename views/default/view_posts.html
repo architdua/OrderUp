@@ -1,0 +1,256 @@
+{{left_sidebar_enabled,right_sidebar_enabled=False,('message' in globals())}}
+{{extend 'layout.html'}}
+
+<div id="target"></div>
+
+<script id="template" type="text/ractive">
+ <div class="row text-center panel panel-default">
+        <div class="secondtitle">
+            <div class="posttitle">
+                <h1>Posts</h1>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel-body">
+        <div class="span12 options">
+            {{if auth.user_id is None:}}
+                {{=A('Sign Up', _class='btn btn-success', _href=URL('default', 'user', args=['register']))}}
+                {{=A('Sign In', _class='btn btn-success', _href=URL('default', 'user', args=['login']))}}
+            {{else:}}
+                <button class="btn btn-info" on-click="begin_typing"><i class="fa fa-plus"></i> New Post</button>
+                {{=A('Log Out', _class='btn btn-warning', _href=URL('default', 'user', args=['logout']))}}
+            {{pass}}
+        </div>
+
+            <div>
+            {% #if typing %}
+            <div class="col-md-3 text-center top-buffer">
+                <div class="single_post">
+                    <textarea id="typefield" value="{% post_name %}"></textarea>
+                    <textarea id="typefield" value="{% description %}"></textarea>
+                    <input class="btn btn-primary" type="submit" value="Submit" on-click="addmsg" args="board_id"/>
+                </div>
+            </div>
+
+            {% else %}
+            {% /if %}
+            </div>
+
+    </div>
+
+    <hr>
+
+    <div class='row top-buffer'>
+        <div class='display_posts'>
+            {% #post_dict:post_id %}
+
+                <div class="col-md-3 text-right top-buffer">
+                    <div class="view_post">
+                       {{if auth.user_id is None:}}
+                       <div class="naam">
+                       {% post_name %}
+                       <div class="desc">
+                       {% description %}
+                       </div>
+                       </div>
+                       {{else:}}
+                       <div class="naam">
+                        <h2>{% post_name %}</h2>
+                       <div class="desc">
+                       <h5>{% description %}</h5>
+                       <button class="btn btn-success" data-msgid="{% post_id %}" on-click="edit-post">Edit</button>
+                       <button class="btn btn-warning" on-click="delpost">Delete</button>
+                       </div>
+                       </div>
+                       {{pass}}
+                       </div>
+                       <hr>
+                    </div>
+                </div>
+
+            {% /post_dict %}
+        </div>
+    </div>
+
+    {% #if loading %}
+        <div id="load_spinner">
+            <i class="fa fa-spinner fa-pulse fa-4x"></i>
+        </div>
+    {% /if %}
+
+
+
+</script>
+
+
+<script>
+    $(function () {
+
+        // Ractive object
+        var MAIN = new Ractive({
+            el: '#target',
+            template: '#template',
+            delimiters: ['{%', '%}'],
+            tripleDelimiters: ['{%%', '%%}'],
+            data: {
+                post_dict: {},
+                board_id: "{{=board_id}}",
+                post_name: "",
+                description: "",
+                typing: false,
+                loading: true
+            }
+        });
+
+        // Loads the initial list of messages.
+        $.ajax("{{=URL('default', 'load_posts', args=['board_id'])}}",
+                {
+                    method: 'POST',
+                    success: function (data) {
+                        MAIN.set('board_id', data['board_id']);
+                        MAIN.set('post_dict', data['post_dict']);
+                        MAIN.set('loading', false);
+                    }
+                }
+        );
+//        function load_posts() {
+//        $.ajax("{{=URL('default', 'load_posts', args=['board_id'])}}",
+//            {
+//                method: 'POST',
+//                success: function (data) {
+//                    MAIN.set('items', data['items']);
+//                }
+//            }
+//        );
+//}
+//        load_posts();
+
+        MAIN.on("begin_typing", function () {
+            MAIN.set("typing", true);
+            $("#typefield").focus();
+        });
+        MAIN.on("finish_typing", function () {
+            MAIN.set("typing", false);
+        });
+
+        // Called every 10s, or upon switching drafts.
+        function periodic_send() {
+            var new_msg = MAIN.get('post_name');
+            var new_content = MAIN.get('description');
+            var post_dict = MAIN.get('post_dict');
+            var draft_id = MAIN.get('post_id');
+            if (draft_id in post_dict) {
+                // There is already a draft.  Check if it is modified.
+                var old_msg = post_dict[draft_id]['post_name'];
+                if (new_msg !== old_msg) {
+                    // Yes, it is modified.  Send it to the server.
+                    send_message(new_msg, true); // true means: it's a draft
+                }
+            } else if ($.trim(new_msg).length > 0) {
+                // This is a brand new draft, send it to the server.
+                send_message(new_msg, true);
+            }
+        }
+
+        function send_message(post_name, is_draft) {
+            var call_draft_id = MAIN.get('post_id');
+            var description = MAIN.get('description');
+            var board_id = MAIN.get('board_id');
+            $.ajax("{{=URL('default', 'add_post', user_signature=True)}}",
+                    {
+                        data: {
+                            post_name: post_name,
+                            description: description, // request.vars.msg
+                            is_draft: is_draft
+                            // request.vars.is_draft
+                            //post_id: call_draft_id // request.vars.msg_id
+                        },
+                        method: 'POST',
+                        success: function () {
+                            // Reflect in the list of drafts or messages the update sent to the server.
+                            var post_dict = MAIN.get('post_dict');
+                            // if (call_draft_id in board_dict) {
+                            // We have sent to the server a message/draft we have already in the dict.
+                            //  board_dict[call_draft_id]['board_name'] = board_name;
+                            //  board_dict[call_draft_id]['board_id'] = call_draft_id;
+
+                            // This is a new message or draft.  We have to create a new entry in the dict.
+                            post_dict[call_draft_id] = {
+                                post_name: post_name,
+                                description: description,
+                                is_draft: is_draft,
+                                board_id: board_id
+                                //  post_id: call_draft_id
+                            }
+                            MAIN.set('post_dict', post_dict);
+                        },
+                        error: function () {
+                        }
+                    }
+            );
+        }
+
+        // This code is called when the submit button is pressed.
+        MAIN.on("addmsg", function (e) {
+            //var msg_content = MAIN.get('active_draft');
+            var post_dict = MAIN.get('post_dict');
+            var post_name = MAIN.get('post_name');
+            var post_id = MAIN.get('post_id');
+            var description = MAIN.get('description');
+            send_message(post_name, post_id);
+            post_dict[post_id] = {
+                post_name: post_name,
+                description: description
+            };
+           // MAIN.set('post_name', '');
+           // MAIN.set('description', '');
+           // MAIN.set("typing", false);
+            return false;
+
+        });
+
+         MAIN.on("delpost", function (e) {
+            //var msg_content = MAIN.get('active_draft');
+            var t = $(e.original.target); // This is the button on which we clicked.
+            var clicked_id = t.data('post_id');  // To set it, you could do .data('msgid', 'my id');
+            var msg_dict = MAIN.get('post_dict');
+            var post_id = MAIN.get('post_id');
+            delete msg_dict[clicked_id];
+            MAIN.set('post_dict', msg_dict)
+
+        });
+
+        MAIN.on("edit-post", function (e) {
+            // First, we send to the server the current draft, to avoid losing it.
+            periodic_send();
+            var t = $(e.original.target); // This is the button on which we clicked.
+            var clicked_id = t.data('msgid');  // To set it, you could do .data('msgid', 'my id');
+            var msg_dict = MAIN.get('post_dict');
+            MAIN.set("typing", true);
+            MAIN.set('post_name', msg_dict[clicked_id]['post_name']);
+            MAIN.set('description', msg_dict[clicked_id]['description']);
+            MAIN.set('post_id', clicked_id);
+        });
+
+        // http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
+        function generateUUID() {
+            var d = new Date().getTime();
+            if (window.performance && typeof window.performance.now === "function") {
+                d += performance.now();
+                ; //use high-precision timer if available
+            }
+            var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                var r = (d + Math.random() * 16) % 16 | 0;
+                d = Math.floor(d / 16);
+                return (c == 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
+            return uuid;
+        }
+
+
+//  setInterval(periodic_send, 10000);
+
+    });
+</script>
+

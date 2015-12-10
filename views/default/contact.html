@@ -1,0 +1,184 @@
+{{left_sidebar_enabled,right_sidebar_enabled=False,('message' in globals())}}
+{{extend 'layout.html'}}
+<h1>hi</h1>
+{{block toolbar_left}}
+    <div class="pull-left">
+        {{if auth.is_logged_in():}}
+            <a class="btn btn-lg btn-primary" id="create-board">
+                <i class="fa fa-clipboard"></i>{{=T('Add Contact')}}
+            </a>
+        {{else:}}
+            {{=contactform}}
+            <a class="btn btn-lg btn-danger" href="{{=URL('default', 'user', args='register', vars=_next)}}">
+                <i class="fa fa-user-plus"></i>{{=T('Register')}}
+            </a>
+        {{pass}}
+    </div>
+{{end}}
+
+<div id="ractive-target-boards"></div>
+
+{{block page_js}}
+    <script id="board-partial" type="text/ractive">
+        <div class="panel-heading">
+            {% #if creating %}
+                <div class="panel-title-input-container">
+                    <input class="panel-title-input" type="text" value="{% title %}"/>
+                    <input class="panel-number-input" type="text" value="{% number %}"/>
+                </div>
+
+            {% else %}
+                <h3 class="panel-title">{% title %}</h3>
+                <h3 class="panel-number">{% number %}</h3>
+            {% /if %}
+        </div>
+
+        <div class="panel-body">
+            <div class="text-center">
+                {% #if creating %}
+                    <a on-click="board-create" class="action-success tt" data-placement="top" title="{{=T('Add')}}"><i class="fa fa-check"></i></a>
+                    <a on-click="board-cancel" class="action-danger tt" data-placement="top" title="{{=T('Cancel')}}"><i class="fa fa-times"></i></a>
+                {% else %}
+                    <span class="lead">
+                        {% new_count %}
+                    </span>
+                    <br/>
+
+                {% /if %}
+            </div>
+        </div>
+    </script>
+
+    <script id="boards-template" type="text/ractive">
+        {% #if pause > 0 %}
+            <a class="btn btn-default tt" data-placement="left" id="paused" title="{{=T('Automatic refreshing is currently paused')}}"><i class="fa fa-pause"></i></a>
+        {% /if %}
+
+        {% #if board_count == -1 %}
+            <div class="loading-animation">
+                <i class="fa fa-refresh fa-pulse fa-5x"></i>
+            </div>
+        {% elseif board_count > 0 %}
+            <div class="container-fluid panel-grid board-grid">
+                {% #boards:i %}
+                    <div class="col-xs-12 col-sm-6 col-md-3">
+                        {% #if creating %}
+                            <div class="panel panel-success" data-i="{% i %}" id="board-{% i %}">
+                                {% >board-partial %}
+                            </div>
+                        {% else %}
+                            <a class="panel panel-warning" href="{{=URL('default', 'view_board')}}/{% id %}" id="board-{% i %}">
+                                {% >board-partial %}
+                            </a>
+                        {% /if %}
+                    </div>
+                {% /boards %}
+            </div>
+        {% else %}
+            <div class="alert alert-danger">
+                <h4>{{=T('Sorry')}}&hellip;</h4>
+                <p>{{=T('There are currently no boards to display.')}}</p>
+            </div>
+        {% /if %}
+    </script>
+
+    <script>
+        $(function() {
+            var get_boards_fail = "{{=T('Failed to retrieve updated list of boards')}}";
+            var board_create_fail = "{{=T('Failed to create board')}}";
+
+            // Ractive object
+            var MAIN = new Ractive({
+                el: "#ractive-target-boards",
+                template: "#boards-template",
+                delimiters: ["{%", "%}"],
+                tripleDelimiters: ["{%%", "%%}"],
+                data: {
+                    pause: 0,
+                    boards: [],
+                    board_count: -1
+                }
+            });
+
+            // Get list of boards
+            function get_boards() {
+                if (MAIN.get("pause")) { return; }
+
+                $.ajax({
+                    url: "{{=URL('default', 'get_boards')}}"
+                }).done(function(data) {
+                    MAIN.set("boards", data);
+                    MAIN.set("board_count", data.length);
+                }).fail(function() {
+                    alert(get_boards_fail);
+                });
+            }
+
+            // Get initial list of boards
+            get_boards();
+
+            // Update board list every 10 seconds
+            setInterval(get_boards, 10000);
+
+            $("#create-board").on("click", function() {
+                if (MAIN.get("boards[0].creating")) {
+                    $("#board-0").find(".panel-title-input").focus();
+                } else {
+                    MAIN.unshift("boards", {
+                        "title": "",
+                        "creating": true
+                    });
+
+                    MAIN.add("board_count");
+                    MAIN.fire("board-new", $("#board-0"));
+                }
+            });
+
+            MAIN.on("board-new", function($board) {
+                MAIN.add("pause");
+
+                $board.find(".panel-title-input").focus();
+            });
+
+            MAIN.on("board-cancel", function(e) {
+                MAIN.subtract("pause");
+
+                var $this = $(e.node);
+                var $parent = $this.closest(".panel");
+                var i = $parent.data("i");
+
+                $this.tooltip("hide");
+
+                MAIN.splice("boards", i, 1);
+                MAIN.subtract("board_count");
+            });
+
+            MAIN.on("board-create", function(e) {
+                var $this = $(e.node);
+                var $parent = $this.closest(".panel");
+
+                $this.tooltip("hide");
+
+                $.ajax({
+                    url: "{{=URL('default', 'create_board', user_signature=True)}}",
+                    method: "post",
+                    data: {
+                        title: $parent.find(".panel-title-input").val().trim()
+                    }
+                }).done(function(data) {
+                    var success = data["success"];
+
+                    if (success) {
+                        MAIN.subtract("pause");
+
+                        get_boards();
+                    } else {
+                        alert(board_create_fail);
+                    }
+                }).fail(function() {
+                    alert(board_create_fail);
+                });
+            });
+        });
+    </script>
+{{end}}
